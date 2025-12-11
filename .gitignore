@@ -1,0 +1,17 @@
+# Node / React
+node_modules/
+frontend/web/dist/
+frontend/web/.vite/
+
+# Python
+__pycache__/
+.venv/
+.env
+
+# Editor / OS
+.DS_Store
+*.log
+
+# Runtime data
+data/
+

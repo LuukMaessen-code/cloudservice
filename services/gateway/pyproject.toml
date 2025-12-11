@@ -1,0 +1,19 @@
+[project]
+name = "cloudservice-gateway"
+version = "0.1.0"
+description = "WebSocket bridge for cloudservice-demo"
+requires-python = ">=3.11"
+dependencies = [
+    "fastapi>=0.115.0",
+    "uvicorn[standard]>=0.30.0",
+    "pydantic-settings>=2.3.0",
+    "nats-py>=2.7.0",
+    "python-dotenv>=1.0.1",
+]
+
+[tool.black]
+line-length = 100
+
+[tool.isort]
+profile = "black"
+

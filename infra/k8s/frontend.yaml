@@ -1,0 +1,41 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: frontend
+  namespace: cloudservice-demo
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: frontend
+  template:
+    metadata:
+      labels:
+        app: frontend
+    spec:
+      containers:
+        - name: frontend
+          image: cloudservice-frontend:local
+          imagePullPolicy: IfNotPresent
+          env:
+            - name: VITE_GATEWAY_URL
+              value: http://gateway.cloudservice-demo.svc.cluster.local:8000
+            - name: VITE_HISTORY_URL
+              value: http://history.cloudservice-demo.svc.cluster.local:9000
+          ports:
+            - containerPort: 80
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: frontend
+  namespace: cloudservice-demo
+spec:
+  selector:
+    app: frontend
+  ports:
+    - port: 80
+      targetPort: 80
+      name: http
+  type: ClusterIP
+

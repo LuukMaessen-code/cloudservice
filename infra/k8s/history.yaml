@@ -1,0 +1,48 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: history
+  namespace: cloudservice-demo
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: history
+  template:
+    metadata:
+      labels:
+        app: history
+    spec:
+      containers:
+        - name: history
+          image: cloudservice-history:local
+          imagePullPolicy: IfNotPresent
+          env:
+            - name: NATS_URL
+              value: nats://nats.cloudservice-demo.svc.cluster.local:4222
+            - name: STORAGE_PATH
+              value: /data/history
+            - name: PYTHONPATH
+              value: /app:/app/../packages
+          volumeMounts:
+            - name: history-data
+              mountPath: /data
+          ports:
+            - containerPort: 9000
+      volumes:
+        - name: history-data
+          emptyDir: {}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: history
+  namespace: cloudservice-demo
+spec:
+  selector:
+    app: history
+  ports:
+    - port: 9000
+      targetPort: 9000
+      name: http
+
