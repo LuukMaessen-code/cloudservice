@@ -15,8 +15,8 @@ spec:
     spec:
       containers:
         - name: history
-          image: cloudservice-history:local
-          imagePullPolicy: IfNotPresent
+          image: luukmn/cloudservice-history:latest
+          imagePullPolicy: Always
           env:
             - name: NATS_URL
               value: nats://nats.cloudservice-demo.svc.cluster.local:4222
@@ -31,7 +31,8 @@ spec:
             - containerPort: 9000
       volumes:
         - name: history-data
-          emptyDir: {}
+          persistentVolumeClaim:
+            claimName: history-pvc
 ---
 apiVersion: v1
 kind: Service
@@ -45,4 +46,3 @@ spec:
     - port: 9000
       targetPort: 9000
       name: http
-

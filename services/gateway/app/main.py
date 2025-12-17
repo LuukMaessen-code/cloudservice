@@ -42,6 +42,7 @@ async def health() -> dict[str, str]:
 @app.websocket("/ws/{room}")
 async def websocket_endpoint(websocket: WebSocket, room: str, user: str) -> None:
     await websocket.accept()
+    websocket._origin = "*" #bypass origin check for development
     subscription = await broker.subscribe_room(room)
 
     async def pump_messages() -> None:

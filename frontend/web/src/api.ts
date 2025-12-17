@@ -1,9 +1,9 @@
 import axios from "axios";
 
 const gatewayUrl =
-  import.meta.env.VITE_GATEWAY_URL ?? "http://localhost:8000";
+  import.meta.env.VITE_GATEWAY_URL ?? "/gateway";
 const historyUrl =
-  import.meta.env.VITE_HISTORY_URL ?? "http://localhost:9000";
+  import.meta.env.VITE_HISTORY_URL ?? "/history";
 
 export type ChatMessage = {
   room: string;

@@ -1,6 +1,6 @@
 PROJECT := cloudservice-demo
 COMPOSE := infra/docker/docker-compose.dev.yaml
-REGISTRY ?= local
+REGISTRY ?= luukmn
 TAG ?= latest
 
 IMG_GATEWAY := $(REGISTRY)/cloudservice-gateway:$(TAG)
@@ -36,13 +36,17 @@ k8s-apply:
 	kubectl apply -f infra/k8s/nats.yaml
 	kubectl apply -f infra/k8s/gateway.yaml
 	kubectl apply -f infra/k8s/history.yaml
+	kubectl apply -f infra/k8s/history-pvc.yaml
 	kubectl apply -f infra/k8s/frontend.yaml
+	kubectl apply -f infra/k8s/ingress.yaml
 
 k8s-delete:
 	kubectl delete -f infra/k8s/frontend.yaml --ignore-not-found
 	kubectl delete -f infra/k8s/history.yaml --ignore-not-found
+	kubectl delete -f infra/k8s/history-pvc.yaml --ignore-not-found
 	kubectl delete -f infra/k8s/gateway.yaml --ignore-not-found
 	kubectl delete -f infra/k8s/nats.yaml --ignore-not-found
+	kubectl delete -f infra/k8s/ingress.yaml --ignore-not-found
 	kubectl delete -f infra/k8s/namespace.yaml --ignore-not-found
 
 # Terraform helpers (run from repo root)
