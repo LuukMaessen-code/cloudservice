@@ -70,30 +70,111 @@ On your local machine:
 ssh -i /path/to/key.pem ubuntu@<EC2_PUBLIC_IP>
 ```
 
-### 2.3 Install Docker and docker‑compose
+### 2.3 Install Docker and Docker Compose V2
 
 On the EC2 instance:
 
+**Option A: Install Docker from Docker's official repository (recommended - includes Compose V2):**
+
 ```bash
+# Remove old docker-compose if installed
+sudo apt-get remove -y docker-compose || true
+
+# Install prerequisites
 sudo apt-get update -y
-sudo apt-get install -y docker.io docker-compose
+sudo apt-get install -y ca-certificates curl gnupg lsb-release
+
+# Add Docker's official GPG key
+sudo mkdir -p /etc/apt/keyrings
+curl -fsSL https://download.docker.com/linux/ubuntu/gpg | sudo gpg --dearmor -o /etc/apt/keyrings/docker.gpg
+
+# Set up the repository
+echo \
+  "deb [arch=$(dpkg --print-architecture) signed-by=/etc/apt/keyrings/docker.gpg] https://download.docker.com/linux/ubuntu \
+  $(lsb_release -cs) stable" | sudo tee /etc/apt/sources.list.d/docker.list > /dev/null
+
+# Install Docker Engine and Docker Compose plugin
+sudo apt-get update -y
+sudo apt-get install -y docker-ce docker-ce-cli containerd.io docker-buildx-plugin docker-compose-plugin
 
 sudo systemctl enable docker
 sudo systemctl start docker
 ```
 
-Optional: allow your user to run Docker without `sudo`:
+**Option B: If Docker is already installed, add Docker's repository and install Compose V2 plugin:**
 
 ```bash
-sudo usermod -aG docker $USER
-# Log out and back in for this to take effect.
+# Remove old standalone docker-compose
+sudo apt-get remove -y docker-compose || true
+
+# Install prerequisites
+sudo apt-get update -y
+sudo apt-get install -y ca-certificates curl gnupg lsb-release
+
+# Add Docker's official GPG key
+sudo mkdir -p /etc/apt/keyrings
+curl -fsSL https://download.docker.com/linux/ubuntu/gpg | sudo gpg --dearmor -o /etc/apt/keyrings/docker.gpg
+
+# Set up the repository
+echo \
+  "deb [arch=$(dpkg --print-architecture) signed-by=/etc/apt/keyrings/docker.gpg] https://download.docker.com/linux/ubuntu \
+  $(lsb_release -cs) stable" | sudo tee /etc/apt/sources.list.d/docker.list > /dev/null
+
+sudo apt-get update -y
+sudo apt-get install -y docker-compose-plugin
 ```
 
-For simplicity, the commands below keep using `sudo`.
+Verify installation:
+
+```bash
+docker --version
+docker compose version
+```
+
+You should see Docker Compose V2 (e.g., `v2.x.x`). Note: Use `docker compose` (with space) instead of `docker-compose` (with hyphen).
 
 ---
 
-## 3. EC2 runtime setup (docker‑compose)
+## 3. Upgrading from old docker-compose (if you already have it installed)
+
+If you already have the old `docker-compose` (v1) installed and are experiencing the `ContainerConfig` error, upgrade to Docker Compose V2:
+
+```bash
+# Stop any running containers
+cd ~/cloudservice
+sudo docker-compose down || true
+
+# Remove old docker-compose
+sudo apt-get remove -y docker-compose
+
+# Install prerequisites
+sudo apt-get update -y
+sudo apt-get install -y ca-certificates curl gnupg lsb-release
+
+# Add Docker's official GPG key
+sudo mkdir -p /etc/apt/keyrings
+curl -fsSL https://download.docker.com/linux/ubuntu/gpg | sudo gpg --dearmor -o /etc/apt/keyrings/docker.gpg
+
+# Set up the repository
+echo \
+  "deb [arch=$(dpkg --print-architecture) signed-by=/etc/apt/keyrings/docker.gpg] https://download.docker.com/linux/ubuntu \
+  $(lsb_release -cs) stable" | sudo tee /etc/apt/sources.list.d/docker.list > /dev/null
+
+# Update package list
+sudo apt-get update -y
+
+# Install Docker Compose V2 plugin
+sudo apt-get install -y docker-compose-plugin
+
+# Verify
+docker compose version
+```
+
+Now use `docker compose` (with space) instead of `docker-compose` (with hyphen) for all commands. This permanently fixes the `ContainerConfig` bug.
+
+---
+
+## 4. EC2 runtime setup (docker compose)
 
 On the EC2 instance:
 
@@ -121,7 +202,7 @@ services:
     networks: [cloudservice]
 
   gateway:
-    image: luukmn/cloudservice-gateway:latest
+    image: DH_USERNAME/cloudservice-gateway:latest
     environment:
       NATS_URL: "nats://nats:4222"
       HISTORY_API_URL: "http://history:9000"
@@ -134,7 +215,7 @@ services:
     networks: [cloudservice]
 
   history:
-    image: luukmn/cloudservice-history:latest
+    image: DH_USERNAME/cloudservice-history:latest
     environment:
       NATS_URL: "nats://nats:4222"
       STORAGE_PATH: "/data/history"
@@ -149,7 +230,7 @@ services:
     networks: [cloudservice]
 
   frontend:
-    image: luukmn/cloudservice-frontend:latest
+    image: DH_USERNAME/cloudservice-frontend:latest
     depends_on:
       - gateway
       - history
@@ -163,6 +244,7 @@ networks:
 
 Important:
 - Replace `<EC2_PUBLIC_IP>` in `ALLOWED_ORIGINS` with your **actual** IP or DNS.
+- Replace `DH_USERNAME` for all images with your dockerhub username
 - Make sure you used the same IP/DNS in `.env.production` when building the frontend image.
 
 Create the data directory (for history JSONL files):
@@ -174,10 +256,12 @@ mkdir -p data
 Pull images and start:
 
 ```bash
-sudo docker-compose pull
-sudo docker-compose up -d
-sudo docker-compose ps
+sudo docker compose pull
+sudo docker compose up -d
+sudo docker compose ps
 ```
+
+> **Note**: We use `docker compose` (with space, V2) instead of `docker-compose` (with hyphen, V1). This avoids the `ContainerConfig` bug that affects the old version.
 
 Now browse to:
 - `http://<EC2_PUBLIC_IP>/` → frontend
@@ -186,7 +270,7 @@ Now browse to:
 
 ---
 
-## 4. Restarting an existing EC2 instance
+## 5. Restarting an existing EC2 instance
 
 If you **stop** and later **start** the same EC2 instance:
 
@@ -200,8 +284,8 @@ If you **stop** and later **start** the same EC2 instance:
 
    ```bash
    cd ~/cloudservice
-   sudo docker-compose up -d
-   sudo docker-compose ps
+   sudo docker compose up -d
+   sudo docker compose ps
    ```
 
 3. Open `http://<EC2_PUBLIC_IP>/` in your browser.
@@ -209,11 +293,11 @@ If you **stop** and later **start** the same EC2 instance:
 > Note: If the public IP changes (common when you stop/start an instance without an Elastic IP), update:
 > - `frontend/web/.env.production` locally (`VITE_GATEWAY_URL`, `VITE_HISTORY_URL`),
 > - `ALLOWED_ORIGINS` in `docker-compose.yml` on EC2,
-> then rebuild/push images and `docker-compose pull` again.
+> then rebuild/push images and `docker compose pull` again.
 
 ---
 
-## 5. Rebuilding after code changes
+## 6. Rebuilding after code changes
 
 When you change code locally and want a fresh deploy:
 
@@ -228,9 +312,9 @@ When you change code locally and want a fresh deploy:
 
    ```bash
    cd ~/cloudservice
-   sudo docker-compose pull
-   sudo docker-compose up -d
-   sudo docker-compose ps
+   sudo docker compose pull
+   sudo docker compose up -d
+   sudo docker compose ps
    ```
 
 That’s it: this file should be all you need to bring up the app from scratch or restart it later. 

@@ -27,7 +27,7 @@ export async function fetchHistory(
   limit = 50,
 ): Promise<ChatMessage[]> {
   const resp = await axios.get<ChatMessage[]>(
-    `${historyUrl.replace(/\/+$/, "")}/history/${encodeURIComponent(room)}`,
+    `${historyUrl.replace(/\/+$/, "")}/${encodeURIComponent(room)}`,
     { params: { limit } },
   );
   return resp.data;

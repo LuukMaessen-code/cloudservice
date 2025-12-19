@@ -39,7 +39,7 @@ async def health() -> dict[str, str]:
     return {"status": "ok"}
 
 
-@app.websocket("/ws/{room}")
+@app.websocket("/gateway/ws/{room}")
 async def websocket_endpoint(websocket: WebSocket, room: str, user: str) -> None:
     await websocket.accept()
     websocket._origin = "*" #bypass origin check for development

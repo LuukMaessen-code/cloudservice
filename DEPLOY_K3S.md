@@ -89,7 +89,7 @@ sudo kubectl get ingress -n cloudservice-demo
 
 All pods should eventually show `STATUS = Running`.
 
-> Note: The manifests are already configured to pull your Docker Hub images (`luukmn/cloudservice-*`) and to use in-cluster DNS names (e.g. `gateway.cloudservice-demo.svc.cluster.local`).
+> Note: The manifests are already configured to pull your Docker Hub images (`<DockerHubUsername>/cloudservice-*`) and to use in-cluster DNS names (e.g. `gateway.cloudservice-demo.svc.cluster.local`).
 
 ---
 
