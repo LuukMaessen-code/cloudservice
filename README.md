@@ -6,11 +6,10 @@ Minimal event-driven chat demo inspired by `dverse-platform-archictecture`. Comp
 - **Frontend**: Vite/React UI for joining rooms and chatting.
 - **Infra**: Docker Compose for local dev and Kubernetes manifests for cloud runs.
 
-## Quickstart (dev)
+## Quickstart (local dev)
 ```bash
 # 1) start stack
-docker compose -f infra/docker/docker-compose.dev.yaml up --build
-# or: make dev
+docker compose up --build
 
 # 2) open UI
 http://localhost:5173
@@ -22,22 +21,8 @@ http://localhost:5173
 - Frontend: `http://localhost:5173`
 - NATS: `nats://localhost:4222` (JetStream enabled), monitoring `:8222`
 
-## Kubernetes (local/dev)
-Apply the manifests (namespace `cloudservice-demo` is created by default):
-```bash
-kubectl apply -f infra/k8s/namespace.yaml
-kubectl apply -f infra/k8s/nats.yaml
-kubectl apply -f infra/k8s/gateway.yaml
-kubectl apply -f infra/k8s/history.yaml
-kubectl apply -f infra/k8s/frontend.yaml
-```
-Expose via `kubectl port-forward` or add your own Ingress/LoadBalancer.
-
-Build/push images first so the cluster can pull them:
-```bash
-# from repo root
-docker build -t cloudservice-gateway:local -f services/gateway/Dockerfile .
-docker build -t cloudservice-history:local -f services/history_service/Dockerfile .
+## Kubernetes (cloud only)
+Kubernetes manifests are provided for cloud deployment. For local development, use Docker Compose and localhost endpoints. Ingress is not required for local development.
 docker build -t cloudservice-frontend:local -f frontend/web/Dockerfile frontend/web
 ```
 
