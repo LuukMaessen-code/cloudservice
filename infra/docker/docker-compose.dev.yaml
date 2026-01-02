@@ -7,6 +7,19 @@ services:
       - "8222:8222"
     networks: [cloudservice]
 
+  keycloak:
+    image: quay.io/keycloak/keycloak:24.0.1
+    environment:
+      KC_DB: dev-mem
+      KC_HTTP_PORT: 8080
+      KC_HOSTNAME: localhost
+      KEYCLOAK_ADMIN: admin
+      KEYCLOAK_ADMIN_PASSWORD: admin
+    command: ["start-dev"]
+    ports:
+      - "8080:8080"
+    networks: [cloudservice]
+
   gateway:
     build:
       context: ../..
@@ -17,7 +30,7 @@ services:
     volumes:
       - ../../services/gateway/app:/app/app
       - ../../packages:/app/packages
-    depends_on: [nats]
+    depends_on: [nats, keycloak]
     ports:
       - "8000:8000"
     networks: [cloudservice]

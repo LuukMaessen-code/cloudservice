@@ -1,10 +1,11 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { buildWsUrl, fetchHistory, ChatMessage, MessageEnvelope } from "./api";
+import { useAuth } from "./auth";
 
 type Status = "disconnected" | "connecting" | "connected";
 
 export default function App() {
-  const [user, setUser] = useState("guest");
+  const { authenticated, username, token, initialized } = useAuth();
   const [room, setRoom] = useState("general");
   const [input, setInput] = useState("");
   const [messages, setMessages] = useState<ChatMessage[]>([]);
@@ -12,8 +13,8 @@ export default function App() {
   const socketRef = useRef<WebSocket | null>(null);
 
   const canConnect = useMemo(
-    () => user.trim().length > 0 && room.trim().length > 0,
-    [user, room],
+    () => initialized && authenticated && username && room.trim().length > 0,
+    [initialized, authenticated, username, room],
   );
 
   const addMessage = useCallback((msg: ChatMessage) => {
@@ -27,7 +28,7 @@ export default function App() {
   }, []);
 
   const connect = useCallback(async () => {
-    if (!canConnect || status === "connecting" || status === "connected") return;
+    if (!canConnect || status === "connecting" || status === "connected" || !token || !username) return;
     setStatus("connecting");
     try {
       const history = await fetchHistory(room);
@@ -36,7 +37,9 @@ export default function App() {
       console.error("Failed to fetch history", err);
     }
 
-    const ws = new WebSocket(buildWsUrl(room, user));
+    // Pass token in WebSocket headers (using subprotocol workaround)
+    const wsUrl = buildWsUrl(room, username);
+    const ws = new WebSocket(wsUrl, [token]);
     socketRef.current = ws;
 
     ws.onopen = () => setStatus("connected");
@@ -50,7 +53,7 @@ export default function App() {
         console.warn("Bad payload", err);
       }
     };
-  }, [addMessage, canConnect, room, status, user]);
+  }, [addMessage, canConnect, room, status, token, username]);
 
   const sendMessage = useCallback(() => {
     if (!socketRef.current || status !== "connected" || !input.trim()) return;
@@ -64,6 +67,12 @@ export default function App() {
     };
   }, [disconnect]);
 
+  if (!initialized) {
+    return <div className="page"><div className="card"><p>Loading authentication...</p></div></div>;
+  }
+  if (!authenticated) {
+    return <div className="page"><div className="card"><p>Redirecting to login...</p></div></div>;
+  }
   return (
     <div className="page">
       <div className="card">
@@ -76,11 +85,7 @@ export default function App() {
         <div className="row">
           <div>
             <label>User</label>
-            <input
-              value={user}
-              onChange={(e) => setUser(e.target.value)}
-              placeholder="your name"
-            />
+            <input value={username} disabled readOnly />
           </div>
           <div>
             <label>Room</label>
@@ -131,4 +136,5 @@ export default function App() {
     </div>
   );
 }
+
 

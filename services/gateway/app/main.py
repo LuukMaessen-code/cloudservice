@@ -3,7 +3,8 @@ import json
 from contextlib import asynccontextmanager
 from typing import AsyncIterator
 
-from fastapi import FastAPI, WebSocket, WebSocketDisconnect
+from fastapi import FastAPI, WebSocket, WebSocketDisconnect, Depends, HTTPException
+from fastapi_keycloak import FastAPIKeycloak
 from fastapi.middleware.cors import CORSMiddleware
 
 from packages.common import ChatMessage, MessageEnvelope
@@ -13,7 +14,20 @@ from .models import OutgoingMessage
 from .nats_client import NatsClient
 
 broker = NatsClient()
+
+# Keycloak config
+keycloak = FastAPIKeycloak(
+    server_url="http://keycloak:8080",
+    client_id="cloudservice-gateway",
+    client_secret="WANHrJcemRVg1agZHwdlsTCbUopHNUge",  # Set in Keycloak admin
+    admin_client_id="cloudservice-admin",
+    admin_client_secret="4kmE07MNxka9BeikgBprGQNYjzNg4jqg",  # Set to the admin client secret in Keycloak
+    realm="demo-chat",
+    callback_uri="http://localhost:8000/callback"
+)
+
 app = FastAPI(title="Cloudservice Demo Gateway")
+keycloak.add_swagger_config(app)
 
 app.add_middleware(
     CORSMiddleware,
@@ -34,15 +48,28 @@ async def lifespan(_: FastAPI) -> AsyncIterator[None]:
 app.router.lifespan_context = lifespan
 
 
+
+# Secure health endpoint
 @app.get("/healthz")
-async def health() -> dict[str, str]:
+async def health(user=Depends(keycloak.get_current_user)) -> dict[str, str]:
     return {"status": "ok"}
 
 
+
+# Secure WebSocket endpoint with Keycloak
 @app.websocket("/gateway/ws/{room}")
-async def websocket_endpoint(websocket: WebSocket, room: str, user: str) -> None:
+async def websocket_endpoint(websocket: WebSocket, room: str):
     await websocket.accept()
-    websocket._origin = "*" #bypass origin check for development
+    token = websocket.headers.get("authorization")
+    if not token:
+        await websocket.close(code=4401)
+        return
+    try:
+        user = keycloak.decode_token(token.replace("Bearer ", ""))
+    except Exception:
+        await websocket.close(code=4401)
+        return
+    username = user.get("preferred_username", user.get("sub"))
     subscription = await broker.subscribe_room(room)
 
     async def pump_messages() -> None:
@@ -52,7 +79,6 @@ async def websocket_endpoint(websocket: WebSocket, room: str, user: str) -> None
                 outgoing = OutgoingMessage(**data)
                 await websocket.send_json(outgoing.model_dump(mode="json"))
             except Exception:
-                # Unparseable payload; ignore but still ack
                 pass
             finally:
                 await broker.ack(msg)
@@ -62,7 +88,7 @@ async def websocket_endpoint(websocket: WebSocket, room: str, user: str) -> None
         while True:
             payload = await websocket.receive_text()
             envelope = MessageEnvelope(
-                payload=ChatMessage(room=room, user=user, text=payload)
+                payload=ChatMessage(room=room, user=username, text=payload)
             )
             await broker.publish(envelope)
     except WebSocketDisconnect:
