@@ -48,3 +48,15 @@ export async function fetchHistory(
   return resp.data;
 }
 
+
+// Delete all messages for the authenticated user
+export async function deleteUserMessages(token?: string): Promise<number> {
+  const url = `${historyUrl.replace(/\/+$/, "")}/history/user/messages`;
+  const headers: Record<string, string> = {};
+  if (token) {
+    headers["Authorization"] = `Bearer ${token}`;
+  }
+  const resp = await axios.delete<{ deleted: number }>(url, { headers });
+  return resp.data.deleted;
+}
+

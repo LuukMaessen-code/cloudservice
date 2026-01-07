@@ -90,3 +90,13 @@ async def read_history(room: str, limit: int = 50, user=Depends(get_current_user
         raise HTTPException(status_code=400, detail="limit must be between 1 and 500")
     return storage.read_latest(room, limit=limit)
 
+
+# New endpoint to delete all messages by username
+@app.delete("/history/user/messages")
+async def delete_user_messages(user=Depends(get_current_user)):
+    username = user.get("preferred_username") or user.get("username")
+    if not username:
+        raise HTTPException(status_code=400, detail="Username not found in token")
+    deleted_count = storage.remove_messages_by_username(username)
+    return {"deleted": deleted_count}
+

@@ -12,6 +12,26 @@ export default function App() {
   const [status, setStatus] = useState<Status>("disconnected");
   const socketRef = useRef<WebSocket | null>(null);
 
+  // State for delete user messages
+  const [deleting, setDeleting] = useState(false);
+  const [deleteResult, setDeleteResult] = useState<boolean>(false);
+
+  const handleDeleteUserMessages = async () => {
+    if (!token) return;
+    setDeleting(true);
+    setDeleteResult(false);
+    try {
+      const { deleteUserMessages } = await import("./api");
+      await deleteUserMessages(token);
+      setDeleteResult(true);
+      setMessages((prev) => prev.filter((msg) => msg.user !== username));
+    } catch (err) {
+      setDeleteResult(false);
+    } finally {
+      setDeleting(false);
+    }
+  };
+
   const canConnect = useMemo(
     () => initialized && authenticated && username && room.trim().length > 0,
     [initialized, authenticated, username, room],
@@ -110,6 +130,19 @@ export default function App() {
           <button className="secondary" onClick={disconnect} disabled={status === "disconnected"}>
             Disconnect
           </button>
+          <button
+            className="danger"
+            onClick={handleDeleteUserMessages}
+            disabled={deleting}
+            style={{ marginLeft: "1rem" }}
+          >
+            {deleting ? "Deleting..." : "Delete All My Messages"}
+          </button>
+          {deleteResult && (
+            <span style={{ marginLeft: "1rem", color: "green" }}>
+              Messages deleted.
+            </span>
+          )}
         </div>
 
         <div className="messages">
