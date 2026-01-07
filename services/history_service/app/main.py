@@ -17,7 +17,7 @@ app = FastAPI(title="Cloudservice Demo History")
 
 # Keycloak/JWT config (update these to match your Keycloak setup)
 KEYCLOAK_REALM = "demo-chat"
-KEYCLOAK_SERVER_URL = "http://localhost:8080"
+KEYCLOAK_SERVER_URL = "http://keycloak:8080"
 KEYCLOAK_AUDIENCE = "cloudservice-gateway"
 KEYCLOAK_ISSUER = f"{KEYCLOAK_SERVER_URL}/realms/{KEYCLOAK_REALM}"
 KEYCLOAK_ALGORITHMS = ["RS256"]
@@ -25,14 +25,16 @@ KEYCLOAK_ALGORITHMS = ["RS256"]
 import requests
 from functools import lru_cache
 
-@lru_cache()
-def get_public_key():
+def get_jwk_for_token(token: str):
     url = f"{KEYCLOAK_SERVER_URL}/realms/{KEYCLOAK_REALM}/protocol/openid-connect/certs"
     resp = requests.get(url)
     resp.raise_for_status()
     jwks = resp.json()["keys"]
-    # Use the first key (for demo, production should check kid)
-    return jwt.algorithms.RSAAlgorithm.from_jwk(jwks[0])
+    unverified_header = jwt.get_unverified_header(token)
+    key = next((k for k in jwks if k["kid"] == unverified_header["kid"]), None)
+    if not key:
+        raise HTTPException(status_code=401, detail="Public key not found for token kid")
+    return key
 
 def get_current_user(request: Request):
     auth: str = request.headers.get("authorization")
@@ -40,15 +42,18 @@ def get_current_user(request: Request):
         raise HTTPException(status_code=401, detail="Missing or invalid Authorization header")
     token = auth.split(" ", 1)[1]
     try:
+        key = get_jwk_for_token(token)
         payload = jwt.decode(
             token,
-            get_public_key(),
-            algorithms=KEYCLOAK_ALGORITHMS,
-            audience=KEYCLOAK_AUDIENCE,
-            issuer=KEYCLOAK_ISSUER,
+            key,
+            algorithms=[key["alg"]],
+            audience="account",
+            options={"verify_exp": True},
         )
         return payload
-    except JWTError:
+    except JWTError as e:
+        raise HTTPException(status_code=401, detail="Invalid token")
+    except Exception as e:
         raise HTTPException(status_code=401, detail="Invalid token")
 
 app.add_middleware(

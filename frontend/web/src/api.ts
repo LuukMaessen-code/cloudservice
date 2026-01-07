@@ -29,15 +29,21 @@ export const buildWsUrl = (room: string, token?: string, _user?: string) => {
   return url;
 };
 
+
 export async function fetchHistory(
   room: string,
   limit = 50,
+  token?: string
 ): Promise<ChatMessage[]> {
   // Ensure /history/{room} endpoint
   const url = `${historyUrl.replace(/\/+$/, "")}/history/${encodeURIComponent(room)}`;
+  const headers: Record<string, string> = {};
+  if (token) {
+    headers["Authorization"] = `Bearer ${token}`;
+  }
   const resp = await axios.get<ChatMessage[]>(
     url,
-    { params: { limit } },
+    { params: { limit }, headers },
   );
   return resp.data;
 }

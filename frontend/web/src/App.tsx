@@ -30,11 +30,17 @@ export default function App() {
   const connect = useCallback(async () => {
     if (!canConnect || status === "connecting" || status === "connected" || !token || !username) return;
     setStatus("connecting");
-    try {
-      const history = await fetchHistory(room);
-      setMessages(history);
-    } catch (err) {
-      console.error("Failed to fetch history", err);
+    // Only fetch history if token is present
+    if (token) {
+      try {
+        const history = await fetchHistory(room, 50, token);
+        setMessages(history);
+      } catch (err: any) {
+        if (err && typeof err === "object" && "isAxiosError" in err && err.isAxiosError && err.response) {
+        }
+      }
+    } else {
+      console.warn("[DEBUG] Skipping fetchHistory: token is missing");
     }
 
     // Pass token as query parameter in WebSocket URL

@@ -24,7 +24,7 @@ keycloak = FastAPIKeycloak(
     client_id="cloudservice-gateway",
     client_secret="",  # Set in Keycloak admin
     admin_client_id="cloudservice-admin",
-    admin_client_secret="0EWtW0v28E1uGdjG0vLJEdGeXWFK3Zri",  # Set to the admin client secret in Keycloak
+    admin_client_secret="O4arfwYl3pIE8VSjxQ57pU7ej7cjguk5",  # Set to the admin client secret in Keycloak
     realm="demo-chat",
     callback_uri="http://localhost:8000/callback"
 )
