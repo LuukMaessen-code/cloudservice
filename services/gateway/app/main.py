@@ -5,6 +5,10 @@ from contextlib import asynccontextmanager
 from typing import AsyncIterator
 from jose import jwt
 import requests
+import os
+
+from dotenv import load_dotenv
+load_dotenv()
 
 from fastapi import FastAPI, WebSocket, WebSocketDisconnect, Depends, HTTPException
 from fastapi_keycloak import FastAPIKeycloak
@@ -21,11 +25,11 @@ broker = NatsClient()
 # Keycloak config
 keycloak = FastAPIKeycloak(
     server_url="http://keycloak:8080",
-    client_id="cloudservice-gateway",
-    client_secret="",  # Set in Keycloak admin
-    admin_client_id="cloudservice-admin",
-    admin_client_secret="O4arfwYl3pIE8VSjxQ57pU7ej7cjguk5",  # Set to the admin client secret in Keycloak
-    realm="demo-chat",
+    client_id=os.getenv("KEYCLOAK_CLIENT_ID"),
+    client_secret=os.getenv("KEYCLOAK_CLIENT_SECRET"),  # Set in Keycloak admin
+    admin_client_id=os.getenv("KEYCLOAK_ADMIN_CLIENT_ID"),
+    admin_client_secret=os.getenv("KEYCLOAK_ADMIN_CLIENT_SECRET"),  # Set to the admin client secret in Keycloak
+    realm=os.getenv("KEYCLOAK_REALM"),
     callback_uri="http://localhost:8000/callback"
 )
 

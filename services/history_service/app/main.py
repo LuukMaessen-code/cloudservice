@@ -5,6 +5,10 @@ from fastapi import FastAPI, HTTPException, Depends, Request
 from jose import jwt, JWTError
 from fastapi.middleware.cors import CORSMiddleware
 
+import os
+from dotenv import load_dotenv
+load_dotenv()
+
 from packages.common import ChatMessage
 
 from .config import settings
@@ -16,9 +20,9 @@ worker = HistoryWorker(storage)
 app = FastAPI(title="Cloudservice Demo History")
 
 # Keycloak/JWT config (update these to match your Keycloak setup)
-KEYCLOAK_REALM = "demo-chat"
+KEYCLOAK_REALM = os.getenv("KEYCLOAK_REALM")
 KEYCLOAK_SERVER_URL = "http://keycloak:8080"
-KEYCLOAK_AUDIENCE = "cloudservice-gateway"
+KEYCLOAK_AUDIENCE = os.getenv("KEYCLOAK_AUDIENCE")
 KEYCLOAK_ISSUER = f"{KEYCLOAK_SERVER_URL}/realms/{KEYCLOAK_REALM}"
 KEYCLOAK_ALGORITHMS = ["RS256"]
 
