@@ -58,6 +58,23 @@ services:
     depends_on:
       - gateway
       - history
+
+  account_deletion:
+    build:
+      context: ./services/account_deletion_service
+      dockerfile: Dockerfile
+    environment:
+      KEYCLOAK_SERVER_URL: http://keycloak:8080
+      KEYCLOAK_REALM: yourrealm
+      KEYCLOAK_ADMIN_USER: admin
+      KEYCLOAK_ADMIN_PASS: admin
+      ALLOWED_ORIGINS: "*"
+      HISTORY_SERVICE_URL: http://history:9000
+    ports:
+      - "9100:8000"
+    depends_on:
+      - keycloak
+      - history
 volumes:
   history-data:
     driver: local

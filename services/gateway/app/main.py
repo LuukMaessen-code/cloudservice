@@ -1,4 +1,3 @@
-
 import asyncio
 import json
 from contextlib import asynccontextmanager
@@ -10,7 +9,7 @@ import os
 from dotenv import load_dotenv
 load_dotenv()
 
-from fastapi import FastAPI, WebSocket, WebSocketDisconnect, Depends, HTTPException
+from fastapi import FastAPI, WebSocket, WebSocketDisconnect, Depends, HTTPException, Request
 from fastapi_keycloak import FastAPIKeycloak
 from fastapi.middleware.cors import CORSMiddleware
 
@@ -19,6 +18,7 @@ from packages.common import ChatMessage, MessageEnvelope
 from .config import settings
 from .models import OutgoingMessage
 from .nats_client import NatsClient
+from .account import delete_account_logic
 
 broker = NatsClient()
 
@@ -44,24 +44,19 @@ app.add_middleware(
     allow_headers=["*"],
 ) 
 
-
 @asynccontextmanager
 async def lifespan(_: FastAPI) -> AsyncIterator[None]:
     await broker.connect()
     yield
     await broker.close()
 
-
 app.router.lifespan_context = lifespan
-
 
 
 # Secure health endpoint
 @app.get("/healthz")
 async def health(user=Depends(keycloak.get_current_user)) -> dict[str, str]:
     return {"status": "ok"}
-
-
 
 # Secure WebSocket endpoint with Keycloak
 @app.websocket("/gateway/ws/{room}")
@@ -120,4 +115,11 @@ async def websocket_endpoint(websocket: WebSocket, room: str):
     finally:
         pump_task.cancel()
         await websocket.close()
+
+
+@app.delete("/account")
+async def delete_account(request: Request, user=Depends(keycloak.get_current_user())):
+    print(f"DEBUG: headers={dict(request.headers)}")
+    print(f"DEBUG: type(user)={type(user)}, value={user}")
+    return delete_account_logic(user, keycloak)
 

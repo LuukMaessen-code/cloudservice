@@ -16,6 +16,32 @@ export default function App() {
   const [deleting, setDeleting] = useState(false);
   const [deleteResult, setDeleteResult] = useState<boolean>(false);
 
+  // State for account deletion
+  const [accountDeleting, setAccountDeleting] = useState(false);
+  const [accountDeleteResult, setAccountDeleteResult] = useState<string | null>(null);
+
+  const { keycloak } = useAuth();
+  const handleDeleteAccount = async () => {
+    if (!token) return;
+    setAccountDeleting(true);
+    setAccountDeleteResult(null);
+    try {
+      const { deleteAccount } = await import("./api");
+      const result = await deleteAccount(token);
+      setAccountDeleteResult(result.status);
+      // Redirect to login after successful deletion
+      if (result.status && result.status.includes("deleted")) {
+        setTimeout(() => {
+          keycloak.logout();
+        }, 1500);
+      }
+    } catch (err) {
+      setAccountDeleteResult("Error deleting account.");
+    } finally {
+      setAccountDeleting(false);
+    }
+  };
+
   const handleDeleteUserMessages = async () => {
     if (!token) return;
     setDeleting(true);
@@ -141,6 +167,19 @@ export default function App() {
           {deleteResult && (
             <span style={{ marginLeft: "1rem", color: "green" }}>
               Messages deleted.
+            </span>
+          )}
+          <button
+            className="danger"
+            onClick={handleDeleteAccount}
+            disabled={accountDeleting}
+            style={{ marginLeft: "1rem" }}
+          >
+            {accountDeleting ? "Deleting..." : "Delete My Account"}
+          </button>
+          {accountDeleteResult && (
+            <span style={{ marginLeft: "1rem", color: accountDeleteResult.includes("deleted") ? "green" : "red" }}>
+              {accountDeleteResult}
             </span>
           )}
         </div>

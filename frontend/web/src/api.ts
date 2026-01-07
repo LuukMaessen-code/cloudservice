@@ -29,7 +29,6 @@ export const buildWsUrl = (room: string, token?: string, _user?: string) => {
   return url;
 };
 
-
 export async function fetchHistory(
   room: string,
   limit = 50,
@@ -48,7 +47,6 @@ export async function fetchHistory(
   return resp.data;
 }
 
-
 // Delete all messages for the authenticated user
 export async function deleteUserMessages(token?: string): Promise<number> {
   const url = `${historyUrl.replace(/\/+$/, "")}/history/user/messages`;
@@ -60,3 +58,15 @@ export async function deleteUserMessages(token?: string): Promise<number> {
   return resp.data.deleted;
 }
 
+// Delete the authenticated user's account
+export async function deleteAccount(token?: string): Promise<{ status: string }> {
+  const url = `${gatewayUrl.replace(/\/+$/, "")}/account`;
+  console.log("Delete Account Token:", token);
+  console.log("Delete Account URL:", url);
+  const headers: Record<string, string> = {};
+  if (token) {
+    headers["Authorization"] = `Bearer ${token}`;
+  }
+  const resp = await axios.delete<{ status: string }>(url, { headers });
+  return resp.data;
+}
