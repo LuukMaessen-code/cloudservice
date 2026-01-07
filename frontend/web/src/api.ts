@@ -17,13 +17,16 @@ export type MessageEnvelope = {
   payload: ChatMessage;
 };
 
-export const buildWsUrl = (room: string, _user?: string) => {
+export const buildWsUrl = (room: string, token?: string, _user?: string) => {
   const base = gatewayUrl.replace(/^http/, "ws").replace(/\/+$/, "");
   // Ensure /gateway prefix for WebSocket endpoint
-  if (!base.endsWith("/gateway")) {
-    return `${base}/gateway/ws/${encodeURIComponent(room)}`;
+  let url = base.endsWith("/gateway")
+    ? `${base}/ws/${encodeURIComponent(room)}`
+    : `${base}/gateway/ws/${encodeURIComponent(room)}`;
+  if (token) {
+    url += `?token=${encodeURIComponent(token)}`;
   }
-  return `${base}/ws/${encodeURIComponent(room)}`;
+  return url;
 };
 
 export async function fetchHistory(

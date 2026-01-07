@@ -1,7 +1,10 @@
+
 import asyncio
 import json
 from contextlib import asynccontextmanager
 from typing import AsyncIterator
+from jose import jwt
+import requests
 
 from fastapi import FastAPI, WebSocket, WebSocketDisconnect, Depends, HTTPException
 from fastapi_keycloak import FastAPIKeycloak
@@ -19,9 +22,9 @@ broker = NatsClient()
 keycloak = FastAPIKeycloak(
     server_url="http://keycloak:8080",
     client_id="cloudservice-gateway",
-    client_secret="WANHrJcemRVg1agZHwdlsTCbUopHNUge",  # Set in Keycloak admin
+    client_secret="",  # Set in Keycloak admin
     admin_client_id="cloudservice-admin",
-    admin_client_secret="4kmE07MNxka9BeikgBprGQNYjzNg4jqg",  # Set to the admin client secret in Keycloak
+    admin_client_secret="0EWtW0v28E1uGdjG0vLJEdGeXWFK3Zri",  # Set to the admin client secret in Keycloak
     realm="demo-chat",
     callback_uri="http://localhost:8000/callback"
 )
@@ -35,7 +38,7 @@ app.add_middleware(
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
-)
+) 
 
 
 @asynccontextmanager
@@ -59,18 +62,35 @@ async def health(user=Depends(keycloak.get_current_user)) -> dict[str, str]:
 # Secure WebSocket endpoint with Keycloak
 @app.websocket("/gateway/ws/{room}")
 async def websocket_endpoint(websocket: WebSocket, room: str):
-    await websocket.accept()
-    token = websocket.headers.get("authorization")
+    token = websocket.query_params.get("token")
     if not token:
+        await websocket.accept()
         await websocket.close(code=4401)
         return
+    # Get Keycloak public key for JWT validation
     try:
-        user = keycloak.decode_token(token.replace("Bearer ", ""))
-    except Exception:
+        # Discover JWKS URI from Keycloak
+        realm_url = f"{keycloak.server_url}/realms/{keycloak.realm}"
+        jwks_uri = f"{realm_url}/protocol/openid-connect/certs"
+        jwks = requests.get(jwks_uri).json()
+        # Find the key matching the token's kid
+        unverified_header = jwt.get_unverified_header(token)
+        key = next((k for k in jwks['keys'] if k['kid'] == unverified_header['kid']), None)
+        if not key:
+            raise Exception("Public key not found for token kid")
+        # Decode and verify token using the JWK dict directly
+        user = jwt.decode(token, key, algorithms=[key['alg']], audience="account", options={"verify_exp": True})
+    except Exception as e:
+        await websocket.accept()
         await websocket.close(code=4401)
         return
+    await websocket.accept()
     username = user.get("preferred_username", user.get("sub"))
-    subscription = await broker.subscribe_room(room)
+    try:
+        subscription = await broker.subscribe_room(room)
+    except Exception as e:
+        await websocket.close(code=1011)
+        return
 
     async def pump_messages() -> None:
         async for msg in subscription.messages:

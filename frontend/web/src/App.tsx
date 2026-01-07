@@ -37,9 +37,9 @@ export default function App() {
       console.error("Failed to fetch history", err);
     }
 
-    // Pass token in WebSocket headers (using subprotocol workaround)
-    const wsUrl = buildWsUrl(room, username);
-    const ws = new WebSocket(wsUrl, [token]);
+    // Pass token as query parameter in WebSocket URL
+    const wsUrl = buildWsUrl(room, token, username);
+    const ws = new WebSocket(wsUrl);
     socketRef.current = ws;
 
     ws.onopen = () => setStatus("connected");
