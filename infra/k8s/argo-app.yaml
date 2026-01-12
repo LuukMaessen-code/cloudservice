@@ -6,7 +6,7 @@ metadata:
 spec:
   project: default
   source:
-    repoURL: 'https://github.com/LuukMaessen-code/cloudservice
+    repoURL: 'https://github.com/LuukMaessen-code/cloudservice'
     targetRevision: HEAD
     path: infra/k8s
   destination:
