@@ -51,7 +51,7 @@ jobs:
       - name: Build and push Docker image (latest only)
         uses: docker/build-push-action@v5
         with:
-          context: .
+          context: ./infra/docker
           file: ./infra/docker/Dockerfile
           push: true
           tags: ${{ secrets.DOCKERHUB_USERNAME }}/cloudservice:latest
