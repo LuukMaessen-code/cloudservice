@@ -28,8 +28,6 @@ jobs:
       - name: Install dependencies (all services)
         run: |
           python -m pip install --upgrade pip
-          find . -name requirements.txt -exec pip install -r {} +
-          pip install -e .
 
   docker:
     runs-on: ubuntu-latest
@@ -50,10 +48,10 @@ jobs:
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
 
-      - name: Build and push Docker image (latest only)
+      - name: Build and push gateway image
         uses: docker/build-push-action@v5
         with:
           context: .
-          file: ./infra/docker/Dockerfile
+          file: ./services/gateway/Dockerfile
           push: true
           tags: ${{ secrets.DOCKERHUB_USERNAME }}/cloudservice:latest
