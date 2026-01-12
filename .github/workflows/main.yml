@@ -67,7 +67,7 @@ jobs:
       - name: Build and push frontend image
         uses: docker/build-push-action@v5
         with:
-          context: .
+          context: ./frontend/web
           file: ./frontend/web/Dockerfile
           push: true
           tags: ${{ secrets.DOCKERHUB_USERNAME }}/cloudservice-frontend:latest
