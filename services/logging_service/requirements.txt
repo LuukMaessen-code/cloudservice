@@ -1,0 +1,5 @@
+fastapi
+faststream[nats]
+logfire[system-metrics]
+uvicorn
+psutil

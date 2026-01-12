@@ -2,7 +2,7 @@ import os
 import requests
 from fastapi import HTTPException
 
-def delete_account_logic(user, keycloak, history_api_url=None):
+async def delete_account_logic(user, keycloak, broker, history_api_url=None):
     username = getattr(user, "preferred_username", None) or getattr(user, "username", None)
     if not username:
         raise HTTPException(status_code=400, detail="Username not found in token")
@@ -40,7 +40,23 @@ def delete_account_logic(user, keycloak, history_api_url=None):
         h_url = f"{history_url}/history/user/messages"
         h_headers = {"Authorization": f"Bearer {getattr(user, 'access_token', '')}"}
         requests.delete(h_url, headers=h_headers)
+        # Log message deletion event
+        await broker.publish_audit(
+            subject="audit.account.messages_deleted",
+            payload={
+                "type": "messages_deleted",
+                "user": username
+            }
+        )
     except Exception:
         pass
 
+    # Log account deletion event
+    await broker.publish_audit(
+        subject="audit.account.deleted",
+        payload={
+            "type": "account_deleted",
+            "user": username
+        }
+    )
     return {"status": "account and messages deleted"}

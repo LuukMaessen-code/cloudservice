@@ -75,6 +75,18 @@ services:
     depends_on:
       - keycloak
       - history
+  logging_service:
+    build:
+      context: ./services/logging_service
+      dockerfile: Dockerfile
+    env_file:
+      - ./services/logging_service/app/.env
+    environment:
+      NATS_URL: nats://nats:4222
+    ports:
+      - "8088:8080"
+    depends_on:
+      - nats
 volumes:
   history-data:
     driver: local

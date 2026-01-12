@@ -63,6 +63,14 @@ class NatsClient:
             manual_ack=True,
         )
         return sub
+    
+    async def publish_audit(self, subject: str, payload: dict) -> None:
+        if not self.nc:
+            raise RuntimeError("NATS connection is not initialized")
+        # Publish audit events over core NATS to avoid JetStream ack parsing issues
+        await self.nc.publish(subject, json.dumps(payload).encode("utf-8"))
+        # Ensure the message is sent promptly
+        await self.nc.flush()
 
     @staticmethod
     async def ack(msg: Msg) -> None:

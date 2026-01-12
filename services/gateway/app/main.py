@@ -21,17 +21,17 @@ from .nats_client import NatsClient
 from .account import delete_account_logic
 
 broker = NatsClient()
-
+ 
 # Keycloak config
 keycloak = FastAPIKeycloak(
     server_url="http://keycloak:8080",
-    client_id=os.getenv("KEYCLOAK_CLIENT_ID"),
+    client_id=os.getenv("KEYCLOAK_CLIENT_ID", "cloudservice-gateway"),
     client_secret=os.getenv("KEYCLOAK_CLIENT_SECRET"),  # Set in Keycloak admin
-    admin_client_id=os.getenv("KEYCLOAK_ADMIN_CLIENT_ID"),
-    admin_client_secret=os.getenv("KEYCLOAK_ADMIN_CLIENT_SECRET"),  # Set to the admin client secret in Keycloak
+    admin_client_id=os.getenv("KEYCLOAK_ADMIN_CLIENT_ID", "cloudservice-admin"),
+    admin_client_secret=os.getenv("KEYCLOAK_ADMIN_CLIENT_SECRET", "SGPClMrc3Bf0jFPaExdBV4NWn1kwzIdA"),  # Set to the admin client secret in Keycloak
     realm=os.getenv("KEYCLOAK_REALM"),
     callback_uri="http://localhost:8000/callback"
-)
+) 
 
 app = FastAPI(title="Cloudservice Demo Gateway")
 keycloak.add_swagger_config(app)
@@ -121,5 +121,26 @@ async def websocket_endpoint(websocket: WebSocket, room: str):
 async def delete_account(request: Request, user=Depends(keycloak.get_current_user())):
     print(f"DEBUG: headers={dict(request.headers)}")
     print(f"DEBUG: type(user)={type(user)}, value={user}")
-    return delete_account_logic(user, keycloak)
+    await broker.publish_audit(
+        subject="audit.account.deletion_requested",
+        payload={
+            "type": "account_deletion_requested",
+            "user": getattr(user, "preferred_username", None) or getattr(user, "username", None)
+        }
+    )
+    return await delete_account_logic(user, keycloak, broker)
+
+# Example login endpoint for audit logging
+@app.post("/login/audit")
+async def login_audit(request: Request):
+    data = await request.json()
+    user = data.get("username")
+    await broker.publish_audit(
+        subject="audit.account.login",
+        payload={
+            "type": "login",
+            "user": user
+        }
+    )
+    return {"status": "login event logged"}
 

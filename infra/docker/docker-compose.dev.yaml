@@ -67,6 +67,21 @@ services:
       - "5173:5173"
     networks: [cloudservice]
 
+  logging_service:
+    build:
+      context: ../../services/logging_service
+      dockerfile: Dockerfile
+    env_file:
+      - ../../services/logging_service/app/.env
+    environment:
+      NATS_URL: "nats://nats:4222"
+    volumes:
+      - ../../services/logging_service/app:/app/app
+    depends_on: [nats]
+    ports:
+      - "8088:8080"
+    networks: [cloudservice]
+
 networks:
   cloudservice: {}
 
