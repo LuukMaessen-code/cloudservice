@@ -1,0 +1,80 @@
+version: '3.8'
+services:
+  nats:
+    image: nats:2.10-alpine
+    command: ["-js", "-m", "8222"]
+    ports:
+      - "4222:4222"
+      - "8222:8222"
+  keycloak:
+    image: quay.io/keycloak/keycloak:24.0.1
+    environment:
+      KC_DB: dev-mem
+      KC_HTTP_PORT: 8080
+      KC_HOSTNAME: localhost
+      KEYCLOAK_ADMIN: admin
+      KEYCLOAK_ADMIN_PASSWORD: admin
+    command: ["start-dev"]
+    ports:
+      - "8080:8080"
+    depends_on:
+      - nats
+  gateway:
+    build:
+      context: ./services/gateway
+      dockerfile: Dockerfile.dev
+    environment:
+      NATS_URL: nats://localhost:4222
+      PYTHONPATH: /app:/app/../packages
+      HISTORY_API_URL: http://localhost:9000
+    ports:
+      - "8000:8000"
+    depends_on:
+      - nats
+      - history
+  history:
+    build:
+      context: ./services/history_service
+      dockerfile: Dockerfile.dev
+    environment:
+      NATS_URL: nats://localhost:4222
+      STORAGE_PATH: /data/history
+      PYTHONPATH: /app:/app/../packages
+    ports:
+      - "9000:9000"
+    volumes:
+      - history-data:/data
+    depends_on:
+      - nats
+  frontend:
+    build:
+      context: ./frontend/web
+      dockerfile: Dockerfile
+    environment:
+      VITE_GATEWAY_URL: http://localhost:8000
+      VITE_HISTORY_URL: http://localhost:9000
+    ports:
+      - "5173:80"
+    depends_on:
+      - gateway
+      - history
+
+  account_deletion:
+    build:
+      context: ./services/account_deletion_service
+      dockerfile: Dockerfile
+    environment:
+      KEYCLOAK_SERVER_URL: http://keycloak:8080
+      KEYCLOAK_REALM: yourrealm
+      KEYCLOAK_ADMIN_USER: admin
+      KEYCLOAK_ADMIN_PASS: admin
+      ALLOWED_ORIGINS: "*"
+      HISTORY_SERVICE_URL: http://history:9000
+    ports:
+      - "9100:8000"
+    depends_on:
+      - keycloak
+      - history
+volumes:
+  history-data:
+    driver: local

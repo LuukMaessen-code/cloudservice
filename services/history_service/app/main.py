@@ -1,8 +1,13 @@
 from contextlib import asynccontextmanager
 from typing import AsyncIterator, List
 
-from fastapi import FastAPI, HTTPException
+from fastapi import FastAPI, HTTPException, Depends, Request
+from jose import jwt, JWTError
 from fastapi.middleware.cors import CORSMiddleware
+
+import os
+from dotenv import load_dotenv
+load_dotenv()
 
 from packages.common import ChatMessage
 
@@ -13,6 +18,47 @@ from .worker import HistoryWorker
 storage = HistoryStorage(settings.STORAGE_PATH)
 worker = HistoryWorker(storage)
 app = FastAPI(title="Cloudservice Demo History")
+
+# Keycloak/JWT config (update these to match your Keycloak setup)
+KEYCLOAK_REALM = os.getenv("KEYCLOAK_REALM")
+KEYCLOAK_SERVER_URL = "http://keycloak:8080"
+KEYCLOAK_AUDIENCE = os.getenv("KEYCLOAK_AUDIENCE")
+KEYCLOAK_ISSUER = f"{KEYCLOAK_SERVER_URL}/realms/{KEYCLOAK_REALM}"
+KEYCLOAK_ALGORITHMS = ["RS256"]
+
+import requests
+from functools import lru_cache
+
+def get_jwk_for_token(token: str):
+    url = f"{KEYCLOAK_SERVER_URL}/realms/{KEYCLOAK_REALM}/protocol/openid-connect/certs"
+    resp = requests.get(url)
+    resp.raise_for_status()
+    jwks = resp.json()["keys"]
+    unverified_header = jwt.get_unverified_header(token)
+    key = next((k for k in jwks if k["kid"] == unverified_header["kid"]), None)
+    if not key:
+        raise HTTPException(status_code=401, detail="Public key not found for token kid")
+    return key
+
+def get_current_user(request: Request):
+    auth: str = request.headers.get("authorization")
+    if not auth or not auth.lower().startswith("bearer "):
+        raise HTTPException(status_code=401, detail="Missing or invalid Authorization header")
+    token = auth.split(" ", 1)[1]
+    try:
+        key = get_jwk_for_token(token)
+        payload = jwt.decode(
+            token,
+            key,
+            algorithms=[key["alg"]],
+            audience="account",
+            options={"verify_exp": True},
+        )
+        return payload
+    except JWTError as e:
+        raise HTTPException(status_code=401, detail="Invalid token")
+    except Exception as e:
+        raise HTTPException(status_code=401, detail="Invalid token")
 
 app.add_middleware(
     CORSMiddleware,
@@ -39,8 +85,18 @@ async def health() -> dict[str, str]:
 
 
 @app.get("/history/{room}", response_model=List[ChatMessage])
-async def read_history(room: str, limit: int = 50) -> List[ChatMessage]:
+async def read_history(room: str, limit: int = 50, user=Depends(get_current_user)) -> List[ChatMessage]:
     if limit <= 0 or limit > 500:
         raise HTTPException(status_code=400, detail="limit must be between 1 and 500")
     return storage.read_latest(room, limit=limit)
+
+
+# New endpoint to delete all messages by username
+@app.delete("/history/user/messages")
+async def delete_user_messages(user=Depends(get_current_user)):
+    username = user.get("preferred_username") or user.get("username")
+    if not username:
+        raise HTTPException(status_code=400, detail="Username not found in token")
+    deleted_count = storage.remove_messages_by_username(username)
+    return {"deleted": deleted_count}
 

@@ -46,3 +46,28 @@ class HistoryStorage:
                 # Skip malformed lines
                 continue
 
+    def remove_messages_by_username(self, username: str) -> int:
+        """
+        Remove all messages posted by the given username from all rooms.
+        Returns the number of messages deleted.
+        """
+        deleted_count = 0
+        for room_file in self.base_path.glob("room_*.jsonl"):
+            with room_file.open("r", encoding="utf-8") as f:
+                lines = f.readlines()
+            new_lines = []
+            for line in lines:
+                try:
+                    data = json.loads(line)
+                    msg = ChatMessage(**data["payload"]) if "payload" in data else ChatMessage(**data)
+                    # Use 'user' field for matching, not 'username'
+                    if getattr(msg, "user", None) != username:
+                        new_lines.append(line)
+                    else:
+                        deleted_count += 1
+                except Exception:
+                    new_lines.append(line)  # keep malformed lines
+            with room_file.open("w", encoding="utf-8") as f:
+                f.writelines(new_lines)
+        return deleted_count
+

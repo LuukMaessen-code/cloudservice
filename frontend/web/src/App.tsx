@@ -1,19 +1,66 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { buildWsUrl, fetchHistory, ChatMessage, MessageEnvelope } from "./api";
+import { useAuth } from "./auth";
 
 type Status = "disconnected" | "connecting" | "connected";
 
 export default function App() {
-  const [user, setUser] = useState("guest");
+  const { authenticated, username, token, initialized } = useAuth();
   const [room, setRoom] = useState("general");
   const [input, setInput] = useState("");
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [status, setStatus] = useState<Status>("disconnected");
   const socketRef = useRef<WebSocket | null>(null);
 
+  // State for delete user messages
+  const [deleting, setDeleting] = useState(false);
+  const [deleteResult, setDeleteResult] = useState<boolean>(false);
+
+  // State for account deletion
+  const [accountDeleting, setAccountDeleting] = useState(false);
+  const [accountDeleteResult, setAccountDeleteResult] = useState<string | null>(null);
+
+  const { keycloak } = useAuth();
+  const handleDeleteAccount = async () => {
+    if (!token) return;
+    setAccountDeleting(true);
+    setAccountDeleteResult(null);
+    try {
+      const { deleteAccount } = await import("./api");
+      const result = await deleteAccount(token);
+      setAccountDeleteResult(result.status);
+      // Redirect to login after successful deletion
+      if (result.status && result.status.includes("deleted")) {
+        setTimeout(() => {
+          keycloak.logout();
+        }, 1500);
+      }
+    } catch (err) {
+      setAccountDeleteResult("Error deleting account.");
+    } finally {
+      setAccountDeleting(false);
+    }
+  };
+
+  const handleDeleteUserMessages = async () => {
+    if (!token) return;
+    setDeleting(true);
+    setDeleteResult(false);
+    try {
+      const { deleteUserMessages } = await import("./api");
+      await deleteUserMessages(token);
+      setDeleteResult(true);
+      setMessages((prev) => prev.filter((msg) => msg.user !== username));
+    } catch (err) {
+      setDeleteResult(false);
+    } finally {
+      setDeleting(false);
+    }
+  };
+
   const canConnect = useMemo(
-    () => user.trim().length > 0 && room.trim().length > 0,
-    [user, room],
+    () => initialized && authenticated && username && room.trim().length > 0,
+    [initialized, authenticated, username, room],
   );
 
   const addMessage = useCallback((msg: ChatMessage) => {
@@ -27,16 +74,24 @@ export default function App() {
   }, []);
 
   const connect = useCallback(async () => {
-    if (!canConnect || status === "connecting" || status === "connected") return;
+    if (!canConnect || status === "connecting" || status === "connected" || !token || !username) return;
     setStatus("connecting");
-    try {
-      const history = await fetchHistory(room);
-      setMessages(history);
-    } catch (err) {
-      console.error("Failed to fetch history", err);
+    // Only fetch history if token is present
+    if (token) {
+      try {
+        const history = await fetchHistory(room, 50, token);
+        setMessages(history);
+      } catch (err: any) {
+        if (err && typeof err === "object" && "isAxiosError" in err && err.isAxiosError && err.response) {
+        }
+      }
+    } else {
+      console.warn("[DEBUG] Skipping fetchHistory: token is missing");
     }
 
-    const ws = new WebSocket(buildWsUrl(room, user));
+    // Pass token as query parameter in WebSocket URL
+    const wsUrl = buildWsUrl(room, token, username);
+    const ws = new WebSocket(wsUrl);
     socketRef.current = ws;
 
     ws.onopen = () => setStatus("connected");
@@ -50,7 +105,7 @@ export default function App() {
         console.warn("Bad payload", err);
       }
     };
-  }, [addMessage, canConnect, room, status, user]);
+  }, [addMessage, canConnect, room, status, token, username]);
 
   const sendMessage = useCallback(() => {
     if (!socketRef.current || status !== "connected" || !input.trim()) return;
@@ -64,6 +119,12 @@ export default function App() {
     };
   }, [disconnect]);
 
+  if (!initialized) {
+    return <div className="page"><div className="card"><p>Loading authentication...</p></div></div>;
+  }
+  if (!authenticated) {
+    return <div className="page"><div className="card"><p>Redirecting to login...</p></div></div>;
+  }
   return (
     <div className="page">
       <div className="card">
@@ -76,11 +137,7 @@ export default function App() {
         <div className="row">
           <div>
             <label>User</label>
-            <input
-              value={user}
-              onChange={(e) => setUser(e.target.value)}
-              placeholder="your name"
-            />
+            <input value={username} disabled readOnly />
           </div>
           <div>
             <label>Room</label>
@@ -99,6 +156,32 @@ export default function App() {
           <button className="secondary" onClick={disconnect} disabled={status === "disconnected"}>
             Disconnect
           </button>
+          <button
+            className="danger"
+            onClick={handleDeleteUserMessages}
+            disabled={deleting}
+            style={{ marginLeft: "1rem" }}
+          >
+            {deleting ? "Deleting..." : "Delete All My Messages"}
+          </button>
+          {deleteResult && (
+            <span style={{ marginLeft: "1rem", color: "green" }}>
+              Messages deleted.
+            </span>
+          )}
+          <button
+            className="danger"
+            onClick={handleDeleteAccount}
+            disabled={accountDeleting}
+            style={{ marginLeft: "1rem" }}
+          >
+            {accountDeleting ? "Deleting..." : "Delete My Account"}
+          </button>
+          {accountDeleteResult && (
+            <span style={{ marginLeft: "1rem", color: accountDeleteResult.includes("deleted") ? "green" : "red" }}>
+              {accountDeleteResult}
+            </span>
+          )}
         </div>
 
         <div className="messages">
@@ -131,4 +214,5 @@ export default function App() {
     </div>
   );
 }
+
 

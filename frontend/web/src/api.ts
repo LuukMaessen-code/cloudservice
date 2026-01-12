@@ -17,19 +17,56 @@ export type MessageEnvelope = {
   payload: ChatMessage;
 };
 
-export const buildWsUrl = (room: string, user: string) => {
+export const buildWsUrl = (room: string, token?: string, _user?: string) => {
   const base = gatewayUrl.replace(/^http/, "ws").replace(/\/+$/, "");
-  return `${base}/ws/${encodeURIComponent(room)}?user=${encodeURIComponent(user)}`;
+  // Ensure /gateway prefix for WebSocket endpoint
+  let url = base.endsWith("/gateway")
+    ? `${base}/ws/${encodeURIComponent(room)}`
+    : `${base}/gateway/ws/${encodeURIComponent(room)}`;
+  if (token) {
+    url += `?token=${encodeURIComponent(token)}`;
+  }
+  return url;
 };
 
 export async function fetchHistory(
   room: string,
   limit = 50,
+  token?: string
 ): Promise<ChatMessage[]> {
+  // Ensure /history/{room} endpoint
+  const url = `${historyUrl.replace(/\/+$/, "")}/history/${encodeURIComponent(room)}`;
+  const headers: Record<string, string> = {};
+  if (token) {
+    headers["Authorization"] = `Bearer ${token}`;
+  }
   const resp = await axios.get<ChatMessage[]>(
-    `${historyUrl.replace(/\/+$/, "")}/${encodeURIComponent(room)}`,
-    { params: { limit } },
+    url,
+    { params: { limit }, headers },
   );
   return resp.data;
 }
 
+// Delete all messages for the authenticated user
+export async function deleteUserMessages(token?: string): Promise<number> {
+  const url = `${historyUrl.replace(/\/+$/, "")}/history/user/messages`;
+  const headers: Record<string, string> = {};
+  if (token) {
+    headers["Authorization"] = `Bearer ${token}`;
+  }
+  const resp = await axios.delete<{ deleted: number }>(url, { headers });
+  return resp.data.deleted;
+}
+
+// Delete the authenticated user's account
+export async function deleteAccount(token?: string): Promise<{ status: string }> {
+  const url = `${gatewayUrl.replace(/\/+$/, "")}/account`;
+  console.log("Delete Account Token:", token);
+  console.log("Delete Account URL:", url);
+  const headers: Record<string, string> = {};
+  if (token) {
+    headers["Authorization"] = `Bearer ${token}`;
+  }
+  const resp = await axios.delete<{ status: string }>(url, { headers });
+  return resp.data;
+}

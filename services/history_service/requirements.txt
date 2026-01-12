@@ -3,4 +3,5 @@ uvicorn[standard]>=0.30.0
 pydantic-settings>=2.3.0
 nats-py>=2.7.0
 python-dotenv>=1.0.1
-
+python-jose>=1.0.0
+requests>=2.0.0

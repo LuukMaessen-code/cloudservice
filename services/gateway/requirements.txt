@@ -3,3 +3,5 @@ uvicorn[standard]>=0.30.0
 pydantic-settings>=2.3.0
 nats-py>=2.7.0
 python-dotenv>=1.0.1
+fastapi-keycloak
+jose>=1.0.0
