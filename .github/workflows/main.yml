@@ -51,7 +51,7 @@ jobs:
       - name: Build and push gateway image
         uses: docker/build-push-action@v5
         with:
-          context: ./services/gateway
+          context: .
           file: ./services/gateway/Dockerfile
           push: true
           tags: ${{ secrets.DOCKERHUB_USERNAME }}/cloudservice-gateway:latest
@@ -59,7 +59,7 @@ jobs:
       - name: Build and push history_service image
         uses: docker/build-push-action@v5
         with:
-          context: ./services/history_service
+          context: .
           file: ./services/history_service/Dockerfile
           push: true
           tags: ${{ secrets.DOCKERHUB_USERNAME }}/cloudservice-history:latest
@@ -67,7 +67,7 @@ jobs:
       - name: Build and push frontend image
         uses: docker/build-push-action@v5
         with:
-          context: ./frontend/web
+          context: .
           file: ./frontend/web/Dockerfile
           push: true
           tags: ${{ secrets.DOCKERHUB_USERNAME }}/cloudservice-frontend:latest
