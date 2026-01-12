@@ -28,7 +28,6 @@ jobs:
       - name: Install dependencies (all services)
         run: |
           python -m pip install --upgrade pip
-          find . -name requirements.txt -exec pip install -r {} +
 
   docker:
     runs-on: ubuntu-latest
