@@ -48,13 +48,29 @@ jobs:
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
 
-      - name: Build and push Docker image (latest only)
+      - name: Build and push gateway image
         uses: docker/build-push-action@v5
         with:
-          context: ./infra/docker
-          file: ./infra/docker/Dockerfile
+          context: ./services/gateway
+          file: ./services/gateway/Dockerfile
           push: true
-          tags: ${{ secrets.DOCKERHUB_USERNAME }}/cloudservice:latest
+          tags: ${{ secrets.DOCKERHUB_USERNAME }}/cloudservice-gateway:latest
+
+      - name: Build and push history_service image
+        uses: docker/build-push-action@v5
+        with:
+          context: ./services/history_service
+          file: ./services/history_service/Dockerfile
+          push: true
+          tags: ${{ secrets.DOCKERHUB_USERNAME }}/cloudservice-history:latest
+
+      - name: Build and push frontend image
+        uses: docker/build-push-action@v5
+        with:
+          context: ./frontend/web
+          file: ./frontend/web/Dockerfile
+          push: true
+          tags: ${{ secrets.DOCKERHUB_USERNAME }}/cloudservice-frontend:latest
 
   deploy:
     runs-on: ubuntu-latest
