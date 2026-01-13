@@ -26,6 +26,10 @@ KEYCLOAK_AUDIENCE = os.getenv("KEYCLOAK_AUDIENCE")
 KEYCLOAK_ISSUER = f"{KEYCLOAK_SERVER_URL}/realms/{KEYCLOAK_REALM}"
 KEYCLOAK_ALGORITHMS = ["RS256"]
 
+# Allow disabling Keycloak checks for local testing. When disabled the service
+# will accept an explicit username via header `X-Username` or query param `user`.
+DISABLE_KEYCLOAK = os.getenv("DISABLE_KEYCLOAK", "false").lower() in ("1", "true", "yes")
+
 import requests
 from functools import lru_cache
 
@@ -41,6 +45,15 @@ def get_jwk_for_token(token: str):
     return key
 
 def get_current_user(request: Request):
+    # In disabled mode we accept an explicit username header or query param
+    if DISABLE_KEYCLOAK:
+        username = request.headers.get("X-Username") or request.query_params.get("user")
+        if username:
+            return {"preferred_username": username, "username": username}
+        # return an empty dict for anonymous callers; endpoints that require a
+        # username should validate and return 400 accordingly
+        return {}
+
     auth: str = request.headers.get("authorization")
     if not auth or not auth.lower().startswith("bearer "):
         raise HTTPException(status_code=401, detail="Missing or invalid Authorization header")
@@ -55,9 +68,9 @@ def get_current_user(request: Request):
             options={"verify_exp": True},
         )
         return payload
-    except JWTError as e:
+    except JWTError:
         raise HTTPException(status_code=401, detail="Invalid token")
-    except Exception as e:
+    except Exception:
         raise HTTPException(status_code=401, detail="Invalid token")
 
 app.add_middleware(
@@ -93,10 +106,13 @@ async def read_history(room: str, limit: int = 50, user=Depends(get_current_user
 
 # New endpoint to delete all messages by username
 @app.delete("/history/user/messages")
-async def delete_user_messages(user=Depends(get_current_user)):
+async def delete_user_messages(request: Request, user=Depends(get_current_user)):
+    # If Keycloak is disabled, the username may come from the request header or query param.
     username = user.get("preferred_username") or user.get("username")
+    if not username and DISABLE_KEYCLOAK:
+        username = request.headers.get("X-Username") or request.query_params.get("user")
     if not username:
-        raise HTTPException(status_code=400, detail="Username not found in token")
+        raise HTTPException(status_code=400, detail="Username required to delete messages")
     deleted_count = storage.remove_messages_by_username(username)
     return {"deleted": deleted_count}
 

@@ -7,7 +7,7 @@ IMG_GATEWAY := $(REGISTRY)/cloudservice-gateway:$(TAG)
 IMG_HISTORY := $(REGISTRY)/cloudservice-history:$(TAG)
 IMG_FRONTEND := $(REGISTRY)/cloudservice-frontend:$(TAG)
 
-.PHONY: dev down logs k8s-apply k8s-delete tf-init tf-plan tf-apply tf-destroy build-images push-images
+.PHONY: dev down logs k8s-apply k8s-delete build-images push-images
 
 # Run full stack locally (NATS + gateway + history + frontend)
 dev:
@@ -48,17 +48,4 @@ k8s-delete:
 	kubectl delete -f infra/k8s/nats.yaml --ignore-not-found
 	kubectl delete -f infra/k8s/ingress.yaml --ignore-not-found
 	kubectl delete -f infra/k8s/namespace.yaml --ignore-not-found
-
-# Terraform helpers (run from repo root)
-tf-init:
-	cd infra/terraform && terraform init
-
-tf-plan:
-	cd infra/terraform && terraform plan
-
-tf-apply:
-	cd infra/terraform && terraform apply
-
-tf-destroy:
-	cd infra/terraform && terraform destroy
 

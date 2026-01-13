@@ -27,6 +27,7 @@ services:
     environment:
       NATS_URL: "nats://nats:4222"
       PYTHONPATH: "/app:/app/packages"
+      DISABLE_KEYCLOAK: "true"
     volumes:
       - ../../services/gateway/app:/app/app
       - ../../packages:/app/packages
@@ -43,6 +44,7 @@ services:
       NATS_URL: "nats://nats:4222"
       STORAGE_PATH: "/data/history"
       PYTHONPATH: "/app:/app/packages"
+      DISABLE_KEYCLOAK: "true"
     volumes:
       - ../../services/history_service/app:/app/app
       - ../../packages:/app/packages
