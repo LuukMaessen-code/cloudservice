@@ -25,10 +25,10 @@ broker = NatsClient()
 # Keycloak config
 keycloak = FastAPIKeycloak(
     server_url="http://keycloak:8080",
-    client_id=os.getenv("KEYCLOAK_CLIENT_ID", "cloudservice-gateway"),
-    client_secret=os.getenv("KEYCLOAK_CLIENT_SECRET"),  # Set in Keycloak admin
-    admin_client_id=os.getenv("KEYCLOAK_ADMIN_CLIENT_ID", "cloudservice-admin"),
-    admin_client_secret=os.getenv("KEYCLOAK_ADMIN_CLIENT_SECRET", "SGPClMrc3Bf0jFPaExdBV4NWn1kwzIdA"),  # Set to the admin client secret in Keycloak
+    client_id=os.getenv("KEYCLOAK_CLIENT_ID"),
+    client_secret=os.getenv("KEYCLOAK_CLIENT_SECRET"),  
+    admin_client_id=os.getenv("KEYCLOAK_ADMIN_CLIENT_ID"),
+    admin_client_secret=os.getenv("KEYCLOAK_ADMIN_CLIENT_SECRET"),  
     realm=os.getenv("KEYCLOAK_REALM"),
     callback_uri="http://localhost:8000/callback"
 ) 
